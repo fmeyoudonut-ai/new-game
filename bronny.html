@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steph Curry's Banana Blast</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+        }
+        canvas {
+            background: linear-gradient(to bottom, #090b18, #15111f);
+            border: 4px solid #fdb927;
+            box-shadow: 0 0 20px rgba(253, 185, 39, 0.3);
+        }
+        #ui-instructions {
+            position: absolute;
+            top: 20px;
+            color: #fff;
+            text-align: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+        h1 {
+            margin: 0 0 5px 0;
+            font-size: 24px;
+            color: #fdb927;
+            text-shadow: 2px 2px #552583;
+        }
+        p {
+            margin: 0;
+            font-size: 14px;
+            color: #ddd;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-instructions">
+        <h1>LeBron vs Steph: Banana Blast 🍌💥</h1>
+        <p><b>LeBron: WASD</b> (W jumps + BIG GULP!) | <b>Steph: Arrow Keys</b> | Collect bananas!</p>
+    </div>
+
+    <canvas id="gameCanvas" width="800" height="500"></canvas>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Keyboard tracking
+        const keys = { a: false, d: false, space: false };
+
+        // Environment variables
+        const gravity = 0.6;
+        const groundY = 420;
+
+        // Two-player controls:
+        // LeBron = WASD, Steph = Arrow Keys
+        const lebronKeys = { w: false, a: false, s: false, d: false, space: false };
+        const stephKeys = { up: false, left: false, down: false, right: false };
+
+        const lebron = {
+            x: 150, y: groundY - 90, width: 50, height: 90,
+            vx: 0, vy: 0, speed: 6, jumpForce: 13, isGrounded: true,
+            gulps: 0, drinkTimer: 0, drinkDuration: 22, isDrinking: false,
+            alive: true, respawnTimer: 0,
+
+            update() {
+                if (!this.alive) return;
+
+                if (lebronKeys.a) this.vx = -this.speed;
+                else if (lebronKeys.d) this.vx = this.speed;
+                else this.vx = 0;
+
+                this.x += this.vx;
+                this.x = Math.max(0, Math.min(canvas.width - this.width, this.x));
+
+                this.vy += gravity;
+                this.y += this.vy;
+
+                if (this.y >= groundY - this.height) {
+                    this.y = groundY - this.height;
+                    this.vy = 0;
+                    this.isGrounded = true;
+                }
+
+                if (lebronKeys.w && this.isGrounded) {
+                    this.vy = -this.jumpForce;
+                    this.isGrounded = false;
+                    this.isDrinking = true;
+                    tryExplodeOnJump(this, "LeBron");
+                    if (!this.alive) return;
+                    this.drinkTimer = this.drinkDuration;
+                    this.gulps++;
+                }
+
+                if (this.isDrinking && --this.drinkTimer <= 0) {
+                    this.isDrinking = false;
+                }
+            },
+
+            draw() {
+                if (!this.alive) return;
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                let facing = lebronKeys.a ? -1 : 1;
+                ctx.scale(facing, 1);
+
+                // Legs
+                ctx.fillStyle = "#552583";
+                ctx.fillRect(-14, 10, 9, 25);
+                ctx.fillRect(5, 10, 9, 25);
+
+                // Lakers jersey
+                ctx.fillStyle = "#552583";
+                ctx.fillRect(-18, -25, 36, 35);
+                ctx.fillStyle = "#fdb927";
+                ctx.fillRect(-18, 7, 36, 4);
+                ctx.fillStyle = "#fdb927";
+                ctx.font = "bold 12px Arial";
+                ctx.fillText("23", -7, -5);
+
+                // Head
+                ctx.fillStyle = "#6b422d";
+                ctx.beginPath();
+                ctx.arc(0, -42, 13, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Beard
+                ctx.fillStyle = "#17120f";
+                ctx.beginPath();
+                ctx.arc(2, -37, 9, 0, Math.PI);
+                ctx.fill();
+
+                // Headband
+                ctx.fillStyle = "#fdb927";
+                ctx.fillRect(-12, -54, 24, 5);
+
+                // Arms + big gulp water bottle
+                ctx.strokeStyle = "#6b422d";
+                ctx.lineWidth = 7;
+
+                if (this.isDrinking) {
+                    ctx.beginPath();
+                    ctx.moveTo(14, -20);
+                    ctx.lineTo(24, -35);
+                    ctx.lineTo(8, -42);
+                    ctx.stroke();
+
+                    ctx.save();
+                    ctx.translate(7, -43);
+                    ctx.rotate(-Math.PI / 2.6);
+                    ctx.fillStyle = "#00a8ff";
+                    ctx.fillRect(-6, -14, 12, 20);
+                    ctx.fillStyle = "#fff";
+                    ctx.fillRect(-3, -18, 6, 4);
+                    ctx.restore();
+
+                    ctx.fillStyle = "#8ee8ff";
+                    ctx.beginPath();
+                    ctx.arc(0, -52, 3, 0, Math.PI * 2);
+                    ctx.arc(5, -47, 2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = "#00a8ff";
+                    ctx.font = "italic bold 15px Arial";
+                    ctx.fillText("BIG GULP!", 18, -57);
+                } else {
+                    ctx.beginPath();
+                    ctx.moveTo(15, -20);
+                    ctx.lineTo(23, -5);
+                    ctx.lineTo(17, 5);
+                    ctx.stroke();
+
+                    ctx.fillStyle = "#00a8ff";
+                    ctx.fillRect(13, -2, 10, 18);
+                    ctx.fillStyle = "#fff";
+                    ctx.fillRect(15, -6, 6, 4);
+                }
+
+                ctx.beginPath();
+                ctx.moveTo(-15, -20);
+                ctx.lineTo(-23, -5);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        };
+
+        const steph = {
+            x: 580, y: groundY - 90, width: 50, height: 90,
+            vx: 0, vy: 0, speed: 6, jumpForce: 13, isGrounded: true,
+            bananas: 0, alive: true, respawnTimer: 0,
+
+            update() {
+                if (!this.alive) return;
+
+                if (stephKeys.left) this.vx = -this.speed;
+                else if (stephKeys.right) this.vx = this.speed;
+                else this.vx = 0;
+
+                this.x += this.vx;
+                this.x = Math.max(0, Math.min(canvas.width - this.width, this.x));
+
+                this.vy += gravity;
+                this.y += this.vy;
+
+                if (this.y >= groundY - this.height) {
+                    this.y = groundY - this.height;
+                    this.vy = 0;
+                    this.isGrounded = true;
+                }
+
+                if (stephKeys.up && this.isGrounded) {
+                    this.vy = -this.jumpForce;
+                    this.isGrounded = false;
+                    tryExplodeOnJump(this, "Steph");
+                    if (!this.alive) return;
+                }
+            },
+
+            draw() {
+                if (!this.alive) return;
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                let facing = stephKeys.left ? -1 : 1;
+                ctx.scale(facing, 1);
+
+                // Legs
+                ctx.fillStyle = "#f5f5f5";
+                ctx.fillRect(-14, 10, 9, 25);
+                ctx.fillRect(5, 10, 9, 25);
+
+                // Warriors-style jersey
+                ctx.fillStyle = "#1d428a";
+                ctx.fillRect(-18, -25, 36, 35);
+                ctx.fillStyle = "#ffc72c";
+                ctx.fillRect(-18, 7, 36, 4);
+                ctx.fillStyle = "#ffc72c";
+                ctx.font = "bold 12px Arial";
+                ctx.fillText("30", -7, -5);
+
+                // Head
+                ctx.fillStyle = "#8d5524";
+                ctx.beginPath();
+                ctx.arc(0, -42, 13, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Curly hair
+                ctx.fillStyle = "#17120f";
+                for (let i = -9; i <= 9; i += 6) {
+                    ctx.beginPath();
+                    ctx.arc(i, -53, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Beard
+                ctx.fillStyle = "#2b211c";
+                ctx.beginPath();
+                ctx.arc(2, -37, 8, 0, Math.PI);
+                ctx.fill();
+
+                // Headband
+                ctx.fillStyle = "#ffc72c";
+                ctx.fillRect(-12, -54, 24, 5);
+
+                // Arms
+                ctx.strokeStyle = "#8d5524";
+                ctx.lineWidth = 7;
+                ctx.beginPath();
+                ctx.moveTo(15, -20);
+                ctx.lineTo(24, -8);
+                ctx.lineTo(16, 3);
+                ctx.stroke();
+
+                // Basketball
+                ctx.fillStyle = "#f47c20";
+                ctx.beginPath();
+                ctx.arc(24, -8, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = "#111";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(18, -8); ctx.lineTo(30, -8);
+                ctx.moveTo(24, -14); ctx.lineTo(24, -2);
+                ctx.stroke();
+
+                ctx.strokeStyle = "#8d5524";
+                ctx.lineWidth = 7;
+                ctx.beginPath();
+                ctx.moveTo(-15, -20);
+                ctx.lineTo(-23, -5);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        };
+
+        // 10% chance to explode on EVERY jump.
+        function tryExplodeOnJump(player, name) {
+            if (Math.random() < 0.10) {
+                player.alive = false;
+                player.respawnTimer = 0;
+                player.vx = 0;
+                player.vy = 0;
+                createExplosion(player.x + player.width / 2, player.y + player.height / 2);
+                createExplosion(player.x + player.width / 2, player.y + player.height / 2);
+                createExplosion(player.x + player.width / 2, player.y + player.height / 2);
+                deadBodies.push({
+                    x: player.x + player.width / 2,
+                    y: groundY - 12,
+                    name,
+                    active: true
+                });
+            }
+        }
+
+        // The other player has to physically walk over the dead body to revive them.
+        const deadBodies = [];
+
+        function checkRevives() {
+            const players = [
+                { p: lebron, other: steph, name: "LeBron" },
+                { p: steph, other: lebron, name: "Steph" }
+            ];
+
+            players.forEach(({ p, other, name }) => {
+                if (p.alive || !other.alive) return;
+
+                const body = deadBodies.find(b => b.active && b.name === name);
+                if (!body) return;
+
+                const otherCenter = other.x + other.width / 2;
+                if (Math.abs(otherCenter - body.x) < 45) {
+                    p.alive = true;
+                    p.x = Math.max(20, Math.min(canvas.width - p.width - 20, body.x - p.width / 2));
+                    p.y = groundY - p.height;
+                    p.vx = 0;
+                    p.vy = 0;
+                    p.isGrounded = true;
+                    body.active = false;
+                    createExplosion(body.x, body.y - 20);
+                }
+            });
+        }
+
+        function drawDeadBodies() {
+            deadBodies.forEach(body => {
+                if (!body.active) return;
+
+                ctx.save();
+                ctx.translate(body.x, body.y);
+                ctx.globalAlpha = 0.85;
+
+                // Simple cartoon knocked-out body
+                ctx.fillStyle = body.name === "LeBron" ? "#552583" : "#1d428a";
+                ctx.fillRect(-25, -8, 50, 12);
+                ctx.fillStyle = "#8d5524";
+                ctx.beginPath();
+                ctx.arc(28, -4, 9, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = "#fff";
+                ctx.font = "bold 11px Arial";
+                ctx.fillText("REVIVE ME!", -30, -18);
+
+                ctx.restore();
+            });
+        }
+
+        function drawDeathMessages() {
+            if (!lebron.alive) {
+                ctx.fillStyle = "#fff";
+                ctx.font = "bold 14px Arial";
+                ctx.fillText("LeBron is down! Steph, run over him!", 20, 25);
+            }
+            if (!steph.alive) {
+                ctx.fillStyle = "#fff";
+                ctx.font = "bold 14px Arial";
+                ctx.fillText("Steph is down! LeBron, run over him!", 20, 25);
+            }
+        }
+
+        // Banana collectibles
+        const bananas = [
+            { x: 260, y: 340, collected: false, spin: 0 },
+            { x: 390, y: 270, collected: false, spin: 0 },
+            { x: 520, y: 350, collected: false, spin: 0 },
+            { x: 650, y: 250, collected: false, spin: 0 },
+            { x: 720, y: 330, collected: false, spin: 0 }
+        ];
+
+        function drawBananas() {
+            bananas.forEach(banana => {
+                if (banana.collected) return;
+                banana.spin += 0.05;
+
+                ctx.save();
+                ctx.translate(banana.x, banana.y);
+                ctx.rotate(Math.sin(banana.spin) * 0.25);
+
+                ctx.strokeStyle = "#ffd21f";
+                ctx.lineWidth = 9;
+                ctx.lineCap = "round";
+                ctx.beginPath();
+                ctx.arc(0, 0, 15, 0.2, Math.PI - 0.2);
+                ctx.stroke();
+
+                ctx.strokeStyle = "#8a5a00";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(-13, 3); ctx.lineTo(-16, 8);
+                ctx.moveTo(13, 3); ctx.lineTo(16, -2);
+                ctx.stroke();
+
+                ctx.restore();
+            });
+        }
+
+        function checkBananaCollisions() {
+            [lebron, steph].forEach(player => {
+                if (!player.alive) return;
+                bananas.forEach(banana => {
+                    if (banana.collected) return;
+
+                    const dx = (player.x + player.width / 2) - banana.x;
+                    const dy = (player.y + player.height / 2) - banana.y;
+
+                    if (Math.hypot(dx, dy) < 45) {
+                        banana.collected = true;
+                        steph.bananas++;
+                        createExplosion(banana.x, banana.y);
+                    }
+                });
+            });
+        }
+
+        const explosions = [];
+
+        function createExplosion(x, y) {
+            explosions.push({ x, y, radius: 8, life: 35, maxLife: 35 });
+        }
+
+        const backgroundBlasts = [
+            { x: 105, y: 145, radius: 34, phase: 0 },
+            { x: 455, y: 125, radius: 42, phase: 1.8 },
+            { x: 700, y: 155, radius: 30, phase: 3.2 }
+        ];
+
+        function drawBackgroundExplosions() {
+            backgroundBlasts.forEach(b => {
+                const pulse = 1 + Math.sin(performance.now() / 180 + b.phase) * 0.12;
+
+                ctx.save();
+                ctx.translate(b.x, b.y);
+                ctx.scale(pulse, pulse);
+
+                ctx.fillStyle = "rgba(255, 95, 20, 0.8)";
+                ctx.beginPath();
+                ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = "#ffd21f";
+                ctx.beginPath();
+                for (let n = 0; n < 16; n++) {
+                    const a = n * Math.PI / 8;
+                    const r = n % 2 ? b.radius * 0.75 : b.radius * 1.45;
+                    const px = Math.cos(a) * r;
+                    const py = Math.sin(a) * r;
+                    if (n === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = "#fff3a6";
+                ctx.beginPath();
+                ctx.arc(0, 0, b.radius * 0.42, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            });
+        }
+
+        function drawExplosions() {
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const e = explosions[i];
+                e.life--;
+                e.radius += 2.2;
+
+                ctx.save();
+                ctx.globalAlpha = e.life / e.maxLife;
+                ctx.fillStyle = "#ff7b00";
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = "#fff36b";
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, e.radius * 0.45, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                if (e.life <= 0) explosions.splice(i, 1);
+            }
+        }
+
+
+        // Renders Court and Background Assets
+        function drawCourt() {
+            ctx.fillStyle = "#e5b787";
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+            // Night arena background
+            ctx.fillStyle = "rgba(10, 10, 25, 0.35)";
+            ctx.fillRect(0, 0, canvas.width, groundY);
+
+            // Background explosions
+            drawBackgroundExplosions();
+
+            // Court lines
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY + 8);
+            ctx.lineTo(canvas.width, groundY + 8);
+            ctx.stroke();
+
+            // Basketball hoop
+            ctx.strokeStyle = "#333";
+            ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.moveTo(740, groundY);
+            ctx.lineTo(740, 210);
+            ctx.lineTo(695, 210);
+            ctx.stroke();
+
+            ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 3;
+            ctx.fillRect(675, 160, 40, 60);
+            ctx.strokeRect(675, 160, 40, 60);
+
+            ctx.strokeStyle = "#ff5722";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(675, 195);
+            ctx.lineTo(645, 195);
+            ctx.stroke();
+
+            // Two-player UI
+            ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+            ctx.fillRect(455, 15, 325, 75);
+            ctx.fillStyle = "#fff";
+            ctx.font = "bold 13px Arial";
+            ctx.fillText(`LeBron 🥤 Gulps: ${lebron.gulps} ${lebron.alive ? "❤️" : "💀"}`, 475, 40);
+            ctx.fillText(`Steph 🍌 Bananas: ${steph.bananas} ${steph.alive ? "❤️" : "💀"}`, 475, 62);
+            ctx.font = "11px Arial";
+            ctx.fillText("LeBron: WASD   |   Steph: Arrow Keys", 475, 82);
+        }
+
+
+        // Active Event Listeners
+        window.addEventListener("keydown", (e) => {
+            const key = e.key.toLowerCase();
+
+            // LeBron: WASD (W = jump)
+            if (key === "w") lebronKeys.w = true;
+            if (key === "a") lebronKeys.a = true;
+            if (key === "s") lebronKeys.s = true;
+            if (key === "d") lebronKeys.d = true;
+
+            // Steph: Arrow keys
+            if (e.key === "ArrowUp") stephKeys.up = true;
+            if (e.key === "ArrowLeft") stephKeys.left = true;
+            if (e.key === "ArrowDown") stephKeys.down = true;
+            if (e.key === "ArrowRight") stephKeys.right = true;
+
+            if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+
+        window.addEventListener("keyup", (e) => {
+            const key = e.key.toLowerCase();
+
+            if (key === "w") lebronKeys.w = false;
+            if (key === "a") lebronKeys.a = false;
+            if (key === "s") lebronKeys.s = false;
+            if (key === "d") lebronKeys.d = false;
+
+            if (e.key === "ArrowUp") stephKeys.up = false;
+            if (e.key === "ArrowLeft") stephKeys.left = false;
+            if (e.key === "ArrowDown") stephKeys.down = false;
+            if (e.key === "ArrowRight") stephKeys.right = false;
+        });
+
+
+        // Main Execution Engine
+        function runGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            lebron.update();
+            steph.update();
+            checkBananaCollisions();
+            checkRevives();
+            drawCourt();
+            drawBananas();
+            drawDeadBodies();
+            lebron.draw();
+            steph.draw();
+            drawDeathMessages();
+            drawExplosions();
+
+            requestAnimationFrame(runGame);
+        }
+
+        // Boot Loop Initialization
+        runGame();
+    </script>
+</body>
+</html>
